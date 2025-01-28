@@ -1,12 +1,12 @@
 # Jenkins Pipeline for vProfile Project
 
-This repository contains a Jenkins pipeline script to automate the build process for the vProfile project. The pipeline is designed to fetch the code, run unit tests, and build the project.
+This repository contains a Jenkins pipeline script to automate the build process for the vProfile project. The pipeline is designed to fetch the code, perform code analysis, run unit tests, build the project, and upload the generated artifact to Nexus.
 
 ---
 
 ## Pipeline Overview
 
-The pipeline uses **Maven 3.9** and **JDK 17** for building the project and consists of the following stages:
+The pipeline uses **Maven 3.9**, **JDK 17**, and **SonarQube** for analysis. It consists of the following stages:
 
 ### 1. **Fetch Code**
 - **Description**: Clones the `atom` branch of the vProfile project from GitHub.
@@ -15,14 +15,7 @@ The pipeline uses **Maven 3.9** and **JDK 17** for building the project and cons
   git branch: 'atom', url: 'https://github.com/hkhcoder/vprofile-project.git'
   ```
 
-### 2. **Unit Test**
-- **Description**: Runs unit tests using Maven to ensure code quality.
-- **Command Used**:
-  ```bash
-  mvn test
-  ```
-
-### 3. **Build**
+### 2. **Build**
 - **Description**: Builds the project and generates the `.war` artifact. Tests are skipped during this stage.
 - **Command Used**:
   ```bash
@@ -35,6 +28,78 @@ The pipeline uses **Maven 3.9** and **JDK 17** for building the project and cons
     archiveArtifacts artifacts: '**/*.war'
     ```
 
+### 3. **Unit Test**
+- **Description**: Runs unit tests using Maven to ensure code quality.
+- **Command Used**:
+  ```bash
+  mvn test
+  ```
+
+### 4. **Check Style Analysis**
+- **Description**: Performs code style analysis using Maven Checkstyle.
+- **Command Used**:
+  ```bash
+  mvn checkstyle:checkstyle
+  ```
+
+### 5. **Sonar Code Analysis**
+- **Description**: Executes static code analysis using SonarQube Scanner.
+- **Key Environment Variables**:
+  - `sonar.projectKey`: vprofile
+  - `sonar.sources`: src/
+- **Command Used**:
+  ```bash
+  ${scannerHome}/bin/sonar-scanner \
+  -Dsonar.projectKey=vprofile \
+  -Dsonar.projectName=vprofile \
+  -Dsonar.projectVersion=1.0 \
+  -Dsonar.sources=src/ \
+  -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
+  -Dsonar.junit.reportsPath=target/surefire-reports \
+  -Dsonar.jacoco.reportsPath=target/jacoco.excec \
+  -Dsonar.java.checkstyle.reportsPath=target/checkstyle-result.xml
+  ```
+
+### 6. **Quality Gate**
+- **Description**: Ensures the project meets SonarQube quality standards.
+- **Command Used**:
+  ```groovy
+  waitForQualityGate abortPipeline: true
+  ```
+
+### 7. **Upload Artifact**
+- **Description**: Uploads the generated `.war` artifact to Nexus.
+- **Command Used**:
+  ```groovy
+  nexusArtifactUploader(
+    nexusVersion: 'nexus3',
+    protocol: 'http',
+    nexusUrl: '172.31.28.254:8081',
+    groupId: 'QA',
+    version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
+    repository: 'vprofile-repo',
+    credentialsId: 'nexuslogin',
+    artifacts: [
+        [artifactId: 'vproapp', classifier: '', file:'target/vprofile-v2.war', type: 'war']
+    ]
+  )
+  ```
+
+---
+
+## Notifications
+
+Slack notifications are sent upon pipeline completion with details about the build result. The messages are formatted based on the build status:
+- **SUCCESS**: Green
+- **FAILURE**: Red
+
+### Slack Command Example:
+```groovy
+slackSend channel: '#devops',
+color: COLOR_MAP [currentBuild.currentResult],
+message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More Info at:"
+```
+
 ---
 
 ## Prerequisites
@@ -43,7 +108,9 @@ Ensure the following tools are installed and configured on your Jenkins instance
 
 - **Maven 3.9**
 - **JDK 17**
-- Jenkins Pipeline Plugin
+- **SonarQube Scanner 6.2**
+- **Nexus 3**
+- Slack integration for Jenkins
 
 ---
 
@@ -51,13 +118,10 @@ Ensure the following tools are installed and configured on your Jenkins instance
 
 1. **Setup the Jenkins Pipeline**:
    - Copy the pipeline script into a Jenkins pipeline project.
-   - Configure the required tools (`Maven` and `JDK`) in Jenkins global tools configuration.
+   - Configure the required tools (Maven, JDK, SonarQube, and Nexus) in Jenkins global tools configuration.
 
 2. **Run the Pipeline**:
-   - Trigger the pipeline to execute the stages sequentially:
-     1. Fetch the project code from the `atom` branch.
-     2. Run unit tests to validate the code.
-     3. Build the project and archive the `.war` artifacts.
+   - Trigger the pipeline to execute the stages sequentially as described above.
 
 ---
 
@@ -71,15 +135,6 @@ Ensure the following tools are installed and configured on your Jenkins instance
 ## Output Artifacts
 
 The pipeline generates the following artifacts:
-
-- **WAR File**: Available in the Jenkins workspace as `**/*.war` after a successful build.
-
----
-
-## Troubleshooting
-
-- Ensure that the `atom` branch exists in the repository.
-- Verify that the correct Maven and JDK versions are configured in Jenkins.
-- Check for any build or test failures in the console logs.
+- **WAR File**: Available in the Jenkins workspace as `target/vprofile-v2.war` after a successful build.
 
 ---
