@@ -62,7 +62,7 @@ pipeline{
                 nexusArtifactUploader(
                     nexusVersion: 'nexus3',
                     protocol: 'http',
-                    nexusURL: '172.31.28.254:8081',
+                    nexusUrl: '172.31.28.254:8081',
                     groupId: 'QA',
                     version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",
                     repository: 'vprofile-repo',
