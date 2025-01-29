@@ -6,7 +6,7 @@ This repository contains a Jenkins pipeline script to automate the build process
 
 ## Architecture
 
-![Pipeline Architecture](Jenkins_Pipeline.png)
+![Pipeline Architecture](Jenkins_Pipeline.jpg)
 
 ## Pipeline Overview
 
