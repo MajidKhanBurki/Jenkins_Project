@@ -4,6 +4,10 @@ This repository contains a Jenkins pipeline script to automate the build process
 
 ---
 
+## Architecture
+
+![Pipeline Architecture](Jenkins_Pipeline.png)
+
 ## Pipeline Overview
 
 The pipeline uses **Maven 3.9**, **JDK 17**, and **SonarQube** for analysis. It consists of the following stages:
